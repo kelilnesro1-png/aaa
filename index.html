@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>간단한 계산기</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+        }
+
+        .calculator {
+            background-color: #3a4750; /* 계산기 배경색 */
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            width: 320px; /* 고정 너비 */
+        }
+
+        .calculator-display {
+            width: calc(100% - 20px); /* 패딩 제외 전체 너비 */
+            height: 60px;
+            background-color: #263238; /* 디스플레이 배경색 */
+            border: none;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            padding: 10px;
+            font-size: 2.5em;
+            color: #ffffff;
+            text-align: right;
+            outline: none;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.3);
+            box-sizing: border-box; /* 패딩을 너비에 포함 */
+        }
+
+        .calculator-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 4개의 동일한 너비의 컬럼 */
+            gap: 10px;
+        }
+
+        .btn {
+            background-color: #607d8b; /* 숫자 버튼 색상 */
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 20px 0;
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn:hover {
+            background-color: #78909c;
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            background-color: #546e7a;
+            transform: translateY(0);
+        }
+
+        /* 특정 버튼 스타일 */
+        .btn-operator {
+            background-color: #ff9800; /* 연산자 버튼 색상 */
+        }
+
+        .btn-operator:hover {
+            background-color: #ffb74d;
+        }
+
+        .btn-operator:active {
+            background-color: #f57c00;
+        }
+
+        .btn-clear {
+            background-color: #ef5350; /* 'C' 버튼 색상 */
+            grid-column: span 3; /* 'C' 버튼이 3개의 컬럼을 차지 */
+        }
+
+        .btn-clear:hover {
+            background-color: #e57373;
+        }
+
+        .btn-clear:active {
+            background-color: #d32f2f;
+        }
+
+        .btn-equals {
+            background-color: #4caf50; /* '=' 버튼 색상 */
+        }
+
+        .btn-equals:hover {
+            background-color: #81c784;
+        }
+
+        .btn-equals:active {
+            background-color: #388e3c;
+        }
+
+        .btn-zero {
+            grid-column: span 2; /* '0' 버튼이 2개의 컬럼을 차지 */
+        }
+
+        /* 소수점 버튼은 숫자 버튼과 동일한 스타일 */
+        .btn-decimal {
+            background-color: #607d8b;
+        }
+        .btn-decimal:hover {
+            background-color: #78909c;
+        }
+        .btn-decimal:active {
+            background-color: #546e7a;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <input type="text" class="calculator-display" value="0" readonly>
+        <div class="calculator-buttons">
+            <button class="btn btn-clear">C</button>
+            <button class="btn btn-operator" data-operator="divide">/</button>
+
+            <button class="btn" data-number="7">7</button>
+            <button class="btn" data-number="8">8</button>
+            <button class="btn" data-number="9">9</button>
+            <button class="btn btn-operator" data-operator="multiply">*</button>
+
+            <button class="btn" data-number="4">4</button>
+            <button class="btn" data-number="5">5</button>
+            <button class="btn" data-number="6">6</button>
+            <button class="btn btn-operator" data-operator="subtract">-</button>
+
+            <button class="btn" data-number="1">1</button>
+            <button class="btn" data-number="2">2</button>
+            <button class="btn" data-number="3">3</button>
+            <button class="btn btn-operator" data-operator="add">+</button>
+
+            <button class="btn btn-zero" data-number="0">0</button>
+            <button class="btn btn-decimal" data-number=".">.</button>
+            <button class="btn btn-equals" data-operator="equals">=</button>
+        </div>
+    </div>
+
+    <script>
+        const display = document.querySelector('.calculator-display');
+        const buttons = document.querySelector('.calculator-buttons');
+
+        let displayValue = '0'; // 디스플레이에 표시될 값
+        let firstOperand = null; // 첫 번째 피연산자
+        let operator = null; // 선택된 연산자
+        let waitingForSecondOperand = false; // 두 번째 피연산자를 기다리는 중인지 여부
+
+        // 디스플레이 업데이트
+        function updateDisplay() {
+            display.value = displayValue;
+        }
+
+        // 버튼 클릭 이벤트 리스너
+        buttons.addEventListener('click', (event) => {
+            const { target } = event;
+
+            // 버튼이 아닌 요소를 클릭한 경우 무시
+            if (!target.matches('button')) {
+                return;
+            }
+
+            // 연산자 버튼인 경우
+            if (target.classList.contains('btn-operator')) {
+                if (target.dataset.operator === 'equals') {
+                    handleEquals(); // '=' 버튼 처리
+                } else {
+                    handleOperator(target.dataset.operator); // 다른 연산자 처리
+                }
+                updateDisplay();
+                return;
+            }
+
+            // 'C' (Clear) 버튼인 경우
+            if (target.classList.contains('btn-clear')) {
+                resetCalculator(); // 계산기 초기화
+                updateDisplay();
+                return;
+            }
+
+            // 숫자 또는 소수점 버튼인 경우
+            if (target.dataset.number) {
+                inputDigit(target.dataset.number);
+                updateDisplay();
+            }
+        });
+
+        // 숫자 또는 소수점 입력 처리
+        function inputDigit(digit) {
+            if (waitingForSecondOperand === true) {
+                displayValue = digit;
+                waitingForSecondOperand = false;
+            } else {
+                // 여러 개의 소수점 입력 방지
+                if (digit === '.' && displayValue.includes('.')) {
+                    return;
+                }
+                // '0'으로 시작하는 경우 대체, 아니면 추가
+                displayValue = displayValue === '0' && digit !== '.' ? digit : displayValue + digit;
+            }
+        }
+
+        // 연산자 버튼 처리
+        function handleOperator(nextOperator) {
+            const inputValue = parseFloat(displayValue);
+
+            // 이미 연산자가 선택되어 있고 두 번째 피연산자를 기다리는 중이라면, 연산자를 변경만 함
+            if (operator && waitingForSecondOperand) {
+                operator = nextOperator;
+                return;
+            }
+
+            // 첫 번째 피연산자가 없는 경우 현재 입력값을 첫 번째 피연산자로 설정
+            if (firstOperand === null && !isNaN(inputValue)) {
+                firstOperand = inputValue;
+            } else if (operator) { // 이미 연산자가 있는 경우 이전 연산 수행
+                const result = operate(firstOperand, inputValue, operator);
+                if (result === "Error") {
+                    displayValue = result;
+                    resetCalculator(true); // 에러 상태로 계산기 초기화
+                    return;
+                }
+                displayValue = `${parseFloat(result.toFixed(7))}`; // 결과 정밀도 제한 및 불필요한 0 제거
+                firstOperand = result;
+            }
+
+            waitingForSecondOperand = true; // 다음 입력은 두 번째 피연산자가 됨
+            operator = nextOperator; // 현재 연산자를 저장
+        }
+
+        // '=' 버튼 처리
+        function handleEquals() {
+            if (firstOperand === null || operator === null) {
+                return; // 계산할 내용이 없으면 아무것도 안 함
+            }
+
+            const secondOperand = parseFloat(displayValue);
+            if (isNaN(secondOperand)) {
+                return; // 두 번째 피연산자가 입력되지 않았으면 아무것도 안 함
+            }
+
+            const result = operate(firstOperand, secondOperand, operator);
+
+            if (result === "Error") {
+                displayValue = result;
+                resetCalculator(true); // 에러 상태로 계산기 초기화
+            } else {
+                displayValue = `${parseFloat(result.toFixed(7))}`;
+                firstOperand = null; // 새로운 계산을 위해 초기화
+                operator = null;
+                waitingForSecondOperand = false;
+            }
+        }
+
+        // 실제 계산 수행
+        function operate(num1, num2, op) {
+            if (op === 'add') {
+                return num1 + num2;
+            } else if (op === 'subtract') {
+                return num1 - num2;
+            } else if (op === 'multiply') {
+                return num1 * num2;
+            } else if (op === 'divide') {
+                if (num2 === 0) {
+                    return "Error"; // 0으로 나누는 경우 에러 반환
+                }
+                return num1 / num2;
+            }
+            return num2; // 도달할 수 없는 코드 (오류 방지)
+        }
+
+        // 계산기 상태 초기화
+        function resetCalculator(isErrorState = false) {
+            // 에러 상태가 아니면 디스플레이 값을 '0'으로 초기화
+            if (!isErrorState) {
+                displayValue = '0';
+            }
+            firstOperand = null;
+            operator = null;
+            waitingForSecondOperand = false;
+            // displayValue가 "Error"인 경우, 이 값은 'C'를 누르기 전까지 유지됨
+        }
+
+        // 초기 디스플레이 업데이트
+        updateDisplay();
+    </script>
+</body>
+</html>
